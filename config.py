@@ -1,14 +1,18 @@
 import json
+import os
 
 class Config:
     """Holds and validates all simulation parameters."""
 
-    def __init__(self, params=None, config_path=None):
-        if config_path:
+    def __init__(self, config_path=None):
+        if config_path and os.path.exists(config_path):
             with open(config_path, "r") as f:
                 self.params = json.load(f)
+            print(f"✅ Loaded config: {config_path}")
         else:
-            self.params = params or {}
+            if config_path:
+                print(f"⚠️  Config file '{config_path}' not found. Using defaults.")
+            self.params = {}
         self._apply_defaults()
 
     def _apply_defaults(self):
@@ -31,3 +35,9 @@ class Config:
 
     def all(self):
         return self.params
+
+    def summary(self):
+        print("\n--- Configuration Summary ---")
+        for k, v in self.params.items():
+            print(f"{k}: {v}")
+        print("------------------------------\n")
