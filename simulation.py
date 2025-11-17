@@ -47,7 +47,7 @@ class Simulation:
             lost_users = users * churn
             users = max(users + new_users - lost_users, 0)
 
-            revenue = self.model.calculate_revenue(users, self.cfg.all())
+            revenue = float(np.atleast_1d(self.model.calculate_revenue(users, self.cfg.all()))[0])
             cost = revenue * cost_ratio
             profit = revenue - cost
 
