@@ -1,0 +1,19 @@
+{
+  "name": "Project Management SaaS",
+  "months": 24,
+
+  "initial_users": 1000,
+  "growth_rate": 0.18,
+  "churn_rate": 0.03,
+
+  "monthly_price": 7.50,
+  "yearly_discount": 0.90,
+
+  "premium_monthly_price": 15,
+  "premium_yearly_discount": 0.80,
+
+  "avg_usage": 10,
+  "price_per_unit": 1.2,
+
+  "cost_ratio": 0.60
+}

@@ -4,19 +4,46 @@ import matplotlib.pyplot as plt
 
 
 def summarize_db(db_name="simulation_results.db"):
-    """Show average monthly profit and revenue for each model."""
+    """Print and graph average profit and users per model."""
+
     conn = sqlite3.connect(db_name)
-    df = pd.read_sql("SELECT model, AVG(mean_profit) as avg_profit, AVG(mean_revenue) as avg_revenue FROM results GROUP BY model", conn)
+
+    query = """
+        SELECT model,
+               AVG(profit) AS avg_profit,
+               AVG(users) AS avg_users
+        FROM results
+        GROUP BY model
+        ORDER BY model;
+    """
+
+    df = pd.read_sql(query, conn)
     conn.close()
 
-    print("\n--- Historical Averages from Database ---")
-    print(df)
-    print("------------------------------------------\n")
+    # Round for readability
+    df["avg_profit"] = df["avg_profit"].round(2)
+    df["avg_users"] = df["avg_users"].round(0).astype(int)
 
-    # Optional: visualize the comparison
-    df.plot(kind="bar", x="model", y=["avg_profit", "avg_revenue"], figsize=(8, 5))
-    plt.title("Average Profit and Revenue per Model (Historical)")
-    plt.ylabel("Value")
+    print("\n--- Historical DB Summary ---")
+    print(df.to_string(index=False))
+    print("---------------------------------\n")
+
+    # === Profit Chart ===
+    plt.figure(figsize=(8, 5))
+    plt.bar(df["model"], df["avg_profit"])
+    plt.title("Average Profit per Model")
+    plt.xlabel("Model")
+    plt.ylabel("Profit")
+    plt.grid(True, axis="y", linestyle="--", alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+    # === Users Chart ===
+    plt.figure(figsize=(8, 5))
+    plt.bar(df["model"], df["avg_users"])
+    plt.title("Average Users per Model")
+    plt.xlabel("Model")
+    plt.ylabel("Users")
     plt.grid(True, axis="y", linestyle="--", alpha=0.7)
     plt.tight_layout()
     plt.show()

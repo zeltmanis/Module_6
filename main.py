@@ -1,63 +1,82 @@
 import sys
-from analytics import summarize_db
 from config import Config
-from models import FlatMonthly, YearlySubscription, UsageBased, TieredPricing
 from simulation import Simulation
-from visualization import plot_results
-from database import save_to_db
+from models import (
+    FlatMonthly,
+    YearlySubscription,
+    PremiumMonthly,
+    PremiumYearlySubscription,
+)
+from visualization import plot_combined
+from database import save_to_db, summarize_db
+from price_optimizer import test_price_range
 
 
 def main():
-    # ✅ 1. Choose config dynamically from command line
+    # Load config
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
     else:
-        config_path = "configs/config_streaming.json"
+        config_path = "config.json"
 
     cfg = Config(config_path)
     cfg.summary()
 
-    # ✅ 2. Define pricing models to compare
+    # Pricing models to compare
     models = {
-        "Flat Monthly": FlatMonthly(),
-        "Yearly Subscription": YearlySubscription(),
-        "Usage-Based": UsageBased(),
-        "Tiered Pricing": TieredPricing(),
+        "Standard Monthly": FlatMonthly(),
+        "Standard Yearly": YearlySubscription(),
+        "Premium Monthly": PremiumMonthly(),
+        "Premium Yearly": PremiumYearlySubscription(),
     }
 
-    results = {}        # for plotting profit curves
-    summary = {}        # for printing summary metrics
-    model_stats = {}    # for saving to database
+    results = {}
+    db_results = {}
 
-    # ✅ 3. Run simulations for each model once
     for name, model in models.items():
         sim = Simulation(cfg, model)
-        stats = sim.multi_run(runs=200)
+        stats = sim.run_once()
 
-        # Store simulation results
-        results[name] = stats["mean_profit"]
-        model_stats[name] = stats  # full data for database
-
-        # Store summary metrics
-        summary[name] = {
-            "Revenue Growth": round(stats["revenue_growth"], 3),
-            "Satisfaction": round(stats["satisfaction"], 3),
-            "Fairness": round(stats["fairness"], 3),
+        results[name] = {
+            "profits": stats["profits"],
+            "users": stats["users"],
         }
 
-    # ✅ 4. Plot simulation outcomes
-    plot_results(results, cfg.get("months"))
+        db_results[name] = stats
 
-    # ✅ 5. Print summary metrics
-    print("\n--- Model Summary ---")
-    for name, metrics in summary.items():
         print(f"\n{name}")
-        for k, v in metrics.items():
-            print(f"  {k}: {v}")
-    print("----------------------\n")
+        print(f"  Final Users: {stats['final_users']}")
+        print(f"  Final Month Profit: {stats['profits'][-1]:.2f}")
 
-    # ✅ 6. Save all results to SQLite database
-    save_to_db(model_stats)
+    print("-------------------------------")
+
+    print("\n=== PRICE OPTIMIZATION RESULTS ===")
+
+    price_tests = {
+        "Standard Monthly": ("monthly_price", [60, 70, 80, 90, 100, 120]),
+        "Standard Yearly": ("monthly_price", [60, 70, 80, 90, 100, 120]),
+        "Premium Monthly": ("premium_monthly_price", [100, 110, 120, 130, 140]),
+        "Premium Yearly": ("premium_monthly_price", [100, 110, 120, 130, 140]),
+    }
+
+    for name, model in models.items():
+        price_key, price_values = price_tests[name]
+
+        best_profit, best_users, all_results = test_price_range(
+            model.__class__, cfg, price_key, price_values
+        )
+
+        print(f"\n{name}")
+        print(f"  Best Price (Profit): {best_profit['price']} → Profit {best_profit['profit']:.2f}")
+        print(f"  Best Price (Users):  {best_users['price']} → Users  {best_users['users']}")
+
+    # Plot graphs
+    plot_combined(results, cfg.get("months"))
+
+    # Save to DB
+    save_to_db(db_results)
+
+    # Summarize
     summarize_db()
 
 
