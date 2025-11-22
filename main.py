@@ -7,13 +7,15 @@ from models import (
     PremiumMonthly,
     PremiumYearlySubscription,
 )
-from visualization import plot_combined
-from database import save_to_db, summarize_db
+from visualization import plot_combined, plot_price_results
 from price_optimizer import test_price_range
+from database import save_to_db, summarize_db
 
 
 def main():
-    # Load config
+    # -------------------------------------
+    # Load JSON configuration
+    # -------------------------------------
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
     else:
@@ -22,7 +24,9 @@ def main():
     cfg = Config(config_path)
     cfg.summary()
 
-    # Pricing models to compare
+    # -------------------------------------
+    # 4 Subscription Plans
+    # -------------------------------------
     models = {
         "Standard Monthly": FlatMonthly(),
         "Standard Yearly": YearlySubscription(),
@@ -32,6 +36,8 @@ def main():
 
     results = {}
     db_results = {}
+
+    print("\n=== SIMULATION RESULTS (Fixed Prices) ===")
 
     for name, model in models.items():
         sim = Simulation(cfg, model)
@@ -50,7 +56,25 @@ def main():
 
     print("-------------------------------")
 
-    print("\n=== PRICE OPTIMIZATION RESULTS ===")
+    # -------------------------------------
+    # Combined Profit & Users Graph
+    # -------------------------------------
+    plot_combined(results, cfg.get("months"))
+
+    # -------------------------------------
+    # Save results -> Database
+    # -------------------------------------
+    save_to_db(db_results)
+
+    # -------------------------------------
+    # Historical summary from DB
+    # -------------------------------------
+    summarize_db()
+
+    # -------------------------------------
+    # PRICE OPTIMIZATION
+    # -------------------------------------
+    print("\n\n=== PRICE OPTIMIZATION RESULTS ===")
 
     price_tests = {
         "Standard Monthly": ("monthly_price", [60, 70, 80, 90, 100, 120]),
@@ -67,17 +91,11 @@ def main():
         )
 
         print(f"\n{name}")
-        print(f"  Best Price (Profit): {best_profit['price']} → Profit {best_profit['profit']:.2f}")
-        print(f"  Best Price (Users):  {best_users['price']} → Users  {best_users['users']}")
+        print(f"  Best Price (Profit): {best_profit['price']} -> Profit {best_profit['profit']:.2f}")
+        print(f"  Best Price (Users):  {best_users['price']} -> Users {best_users['users']}")
 
-    # Plot graphs
-    plot_combined(results, cfg.get("months"))
-
-    # Save to DB
-    save_to_db(db_results)
-
-    # Summarize
-    summarize_db()
+        # Generate graphs
+        plot_price_results(name, all_results)
 
 
 if __name__ == "__main__":
